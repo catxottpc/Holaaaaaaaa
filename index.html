@@ -271,13 +271,13 @@
 
   // Player
   const groundY = 330;
-  const player = { x: 160, y: groundY, w: 36, h: 52, vy: 0, onGround: true };
+  const player = { x: 160, y: groundY, w: 36, h: 52, vy: 0, onGround: true, canDouble: true };
 
   // Obstacles
   let obstacles = [];
   let spawnTimer = 0;
 
-  let speed = 5.2;
+  let speed = 3.6;
   let passed = 0;
 
   // ===== Helpers =====
@@ -334,7 +334,7 @@
 
   function resetRunState(){
     running = false; gameOver = false; won = false;
-    player.y = groundY; player.vy = 0; player.onGround = true;
+    player.y = groundY; player.vy = 0; player.onGround = true; player.canDouble = true;
     obstacles = []; spawnTimer = 0; speed = 5.2;
     passed = 0; passedEl.textContent = passed;
     draw();
@@ -355,8 +355,8 @@
   }
 
   function spawnObstacle(){
-    const h = rand(34, 70);
-    const w = rand(22, 36);
+    const h = rand(28, 55);
+    const w = rand(18, 28);
     obstacles.push({
       x: canvas.width + 40,
       y: groundY + (player.h - h),
@@ -366,9 +366,18 @@
 
   function jump(){
     if(!running || gameOver || won) return;
+
+    // Ground jump
     if(player.onGround){
-      player.vy = -12.5;
+      player.vy = -14.5;
       player.onGround = false;
+      return;
+    }
+
+    // One extra jump in the air (makes it easier)
+    if(player.canDouble){
+      player.vy = -11.5;
+      player.canDouble = false;
     }
   }
 
@@ -389,18 +398,18 @@
     if(gameOver || won) return;
 
     // gravity
-    player.vy += 0.8 * t;
+    player.vy += 0.65 * t;
     player.y += player.vy * t;
 
     if(player.y >= groundY){
-      player.y = groundY; player.vy = 0; player.onGround = true;
+      player.y = groundY; player.vy = 0; player.onGround = true; player.canDouble = true;
     }
 
     // spawn obstacles
     spawnTimer -= t;
     if(spawnTimer <= 0){
       spawnObstacle();
-      spawnTimer = rand(38, 62);
+      spawnTimer = rand(60, 90);
     }
 
     // move obstacles + count passed
@@ -410,7 +419,7 @@
         ob.passed = true;
         passed++;
         passedEl.textContent = passed;
-        speed = Math.min(8.2, speed + 0.12);
+        speed = Math.min(6.0, speed + 0.06);
       }
     }
 
