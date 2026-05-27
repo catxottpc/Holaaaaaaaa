@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mini-joc: 10 obstacles + contrasenya 🎮</title>
+  <title>T'estimo! 🎮</title>
   <style>
     :root{
       --bg:#0f1220; --text:#f2f4ff; --muted:#b7bce6;
@@ -273,13 +273,15 @@
   const groundY = 330;
   const player = { x: 160, y: groundY, w: 36, h: 52, vy: 0, onGround: true, canDouble: true };
 
+  let coyote = 0; // small grace window to jump after leaving ground
+
   // Obstacles
   let obstacles = [];
   let spawnTimer = 0;
 
-  let speed = 3.0;
+  let speed = 2.6;
   let passed = 0;
-  let invuln = 0; // frames of invulnerability after start/restart
+  let invuln = 160; // frames of invulnerability after start/restart
 
 // ===== Helpers =====
   function rand(min, max){ return Math.random() * (max - min) + min; }
@@ -335,7 +337,7 @@
 
   function resetRunState(){
     running = false; gameOver = false; won = false;
-    player.y = groundY; player.vy = 0; player.onGround = true; player.canDouble = true;
+    player.y = groundY; player.vy = 0; player.onGround = true; player.canDouble = true; coyote = 6;
     obstacles = []; spawnTimer = 0; speed = 5.2;
     passed = 0; passedEl.textContent = passed;
     draw();
@@ -356,8 +358,8 @@
   }
 
   function spawnObstacle(){
-    const h = rand(22, 42);
-    const w = rand(16, 24);
+    const h = rand(18, 34);
+    const w = rand(14, 22);
     obstacles.push({
       x: canvas.width + 40,
       y: groundY + (player.h - h),
@@ -368,12 +370,20 @@
   function jump(){
     if(!running || gameOver || won) return;
 
-    // Ground jump
-    if(player.onGround){
-      player.vy = -14.5;
+    // Ground jump OR coyote-time jump
+    if(player.onGround || coyote > 0){
+      player.vy = -16.5;
       player.onGround = false;
+      coyote = 0;
       return;
     }
+
+    // One extra jump in the air (stronger)
+    if(player.canDouble){
+      player.vy = -13.5;
+      player.canDouble = false;
+    }
+  }
 
     // One extra jump in the air (makes it easier)
     if(player.canDouble){
@@ -400,18 +410,21 @@
 
     invuln = Math.max(0, invuln - t);
 // gravity
-    player.vy += 0.65 * t;
+    player.vy += 0.58 * t;
     player.y += player.vy * t;
 
     if(player.y >= groundY){
-      player.y = groundY; player.vy = 0; player.onGround = true; player.canDouble = true;
+      player.y = groundY; player.vy = 0; player.onGround = true; player.canDouble = true; coyote = 6;
+    } else {
+      player.onGround = false;
+      coyote = Math.max(0, coyote - t);
     }
 
     // spawn obstacles
     spawnTimer -= t;
     if(spawnTimer <= 0){
       spawnObstacle();
-      spawnTimer = rand(95, 135);
+      spawnTimer = rand(140, 200);
     }
 
     // move obstacles + count passed
@@ -421,7 +434,7 @@
         ob.passed = true;
         passed++;
         passedEl.textContent = passed;
-        speed = Math.min(5.0, speed + 0.03);
+        speed = Math.min(3.6, speed + 0.02);
       }
     }
 
@@ -433,9 +446,9 @@
     }
 
     // smaller forgiving hitbox
-    const pRect = {x: player.x + player.w*0.20, y: (player.y - player.h) + player.h*0.18, w: player.w*0.60, h: player.h*0.64};
+    const pRect = {x: player.x + player.w*0.26, y: (player.y - player.h) + player.h*0.22, w: player.w*0.48, h: player.h*0.54};
     for(const ob of obstacles){
-      const oRect = {x: ob.x + ob.w*0.10, y: (ob.y - ob.h) + ob.h*0.10, w: ob.w*0.80, h: ob.h*0.85};
+      const oRect = {x: ob.x + ob.w*0.14, y: (ob.y - ob.h) + ob.h*0.14, w: ob.w*0.72, h: ob.h*0.76};
       if(rectsOverlap(pRect, oRect)){
         gameOver = true; running = false;
         startBtn.disabled = false;
@@ -635,8 +648,8 @@
     resetRunState();
 
     running = true;
-    invuln = 90;
-    spawnTimer = Math.max(spawnTimer, 120);
+    invuln = 160;
+    spawnTimer = Math.max(spawnTimer, 170);
     setMessage("✅ Perfecte! Comença la ronda… 🏃‍♂️", "ok");
     startBtn.disabled = true;
     restartBtn.disabled = false;
