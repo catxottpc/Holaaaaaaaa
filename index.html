@@ -1,1 +1,691 @@
+<!doctype html>
+<html lang="ca">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mini-joc: 10 obstacles + contrasenya 🎮</title>
+  <style>
+    :root{
+      --bg:#0f1220; --text:#f2f4ff; --muted:#b7bce6;
+      --accent:#7c5cff; --danger:#ff4d6d; --ok:#2ee59d;
+      --border: rgba(255,255,255,.12);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100vh; display:grid; place-items:center; padding:18px;
+      background:
+        radial-gradient(1200px 800px at 20% 20%, rgba(124,92,255,.28), transparent 55%),
+        radial-gradient(1000px 700px at 80% 30%, rgba(46,229,157,.18), transparent 60%),
+        radial-gradient(900px 700px at 40% 90%, rgba(255,77,109,.14), transparent 60%),
+        var(--bg);
+      color:var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .wrap{width:min(980px,100%); display:grid; gap:14px;}
+    header{
+      padding:14px 16px;
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border-radius:18px;
+      display:flex; justify-content:space-between; gap:12px; align-items:flex-start;
+    }
+    h1{margin:0; font-size:18px}
+    p{margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.4}
+    .pill{
+      padding:8px 10px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.06);
+      color:var(--muted);
+      font-size:12px; white-space:nowrap;
+    }
+    .card{
+      padding:14px;
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border-radius:18px;
+    }
+    .gameRow{display:grid; grid-template-columns: 1fr 340px; gap:14px;}
+    @media (max-width: 900px){ .gameRow{grid-template-columns:1fr} }
 
+    canvas{
+      width:100%;
+      height:auto;
+      aspect-ratio: 16/7;
+      border-radius:14px;
+      background:rgba(0,0,0,.20);
+      border:1px solid rgba(255,255,255,.10);
+      display:block;
+      touch-action: manipulation;
+    }
+    .controls{
+      display:flex; gap:10px; flex-wrap:wrap;
+      margin-top:12px;
+    }
+    button{
+      appearance:none; border:0;
+      padding:11px 12px;
+      border-radius:14px;
+      font-weight:900;
+      cursor:pointer;
+      color:var(--text);
+      background:linear-gradient(180deg, rgba(124,92,255,.95), rgba(124,92,255,.75));
+      box-shadow:0 10px 26px rgba(124,92,255,.22);
+      transition:transform .08s ease, filter .2s ease;
+    }
+    button:active{transform: translateY(1px) scale(.99)}
+    .secondary{
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.12);
+      color:var(--muted);
+      box-shadow:none;
+      font-weight:800;
+    }
+    button:disabled{opacity:.6; cursor:not-allowed; filter:saturate(.6); box-shadow:none}
+
+    .stat{display:grid; gap:10px;}
+    .statBox{
+      padding:12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.14);
+    }
+    .statBox .k{color:var(--muted); font-size:12px}
+    .statBox .v{font-size:18px; font-weight:950; margin-top:4px; line-height:1.2}
+    .tip{color:var(--muted); font-size:12px; line-height:1.5; margin-top:10px;}
+
+    .labelRow{
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      color:var(--muted); font-size:13px; margin-bottom:8px;
+    }
+    .hint{
+      padding:6px 10px; border-radius:999px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.12);
+      color:var(--text); font-size:12px; white-space:nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    input{
+      width:100%;
+      padding:12px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(0,0,0,.18);
+      color:var(--text);
+      outline:none;
+      font-size:15px;
+    }
+    input::placeholder{color:rgba(183,188,230,.65)}
+    .preview{
+      margin-top:10px; padding:10px 12px; border-radius:14px;
+      border:1px dashed rgba(255,255,255,.14);
+      background:rgba(255,255,255,.04);
+      color:var(--muted); font-size:13px;
+    }
+    .preview b{color:var(--text)}
+    .msg{
+      margin-top:12px; padding:12px 12px; border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      min-height:52px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .msg.ok{border-color:rgba(46,229,157,.35); background:rgba(46,229,157,.08)}
+    .msg.bad{border-color:rgba(255,77,109,.35); background:rgba(255,77,109,.08)}
+    .shake{animation: shake .22s linear 0s 2;}
+    @keyframes shake{
+      0%{transform:translateX(0)}
+      25%{transform:translateX(-6px)}
+      50%{transform:translateX(6px)}
+      75%{transform:translateX(-4px)}
+      100%{transform:translateX(0)}
+    }
+
+    /* Modal */
+    .overlay{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.55);
+      display:none;
+      align-items:center; justify-content:center;
+      padding:18px;
+    }
+    .modal{
+      width:min(560px, 100%);
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.14);
+      background:linear-gradient(180deg, rgba(23,26,43,.95), rgba(15,18,32,.95));
+      box-shadow: 0 25px 80px rgba(0,0,0,.55);
+      padding:16px;
+    }
+    .modal h2{margin:0; font-size:18px}
+    .modal .sub{margin:8px 0 0; color:var(--muted); font-size:13px; line-height:1.4}
+    .modal .prize{
+      margin-top:12px;
+      padding:14px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.06);
+      font-weight:950;
+      font-size:20px;
+      text-align:center;
+    }
+    footer{color:rgba(183,188,230,.75); font-size:12px; text-align:center}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>🏃‍♂️ Mini-joc: 10 obstacles + contrasenya</h1>
+        <p>Salta amb <b>Espai</b> (o tocant). Quan superis <b>10 obstacles</b> et surt el premi d’aquesta ronda. Després comença la següent ronda amb una nova contrasenya.</p>
+      </div>
+      <div class="pill" id="roundPill">Ronda 1 / 4</div>
+    </header>
+
+    <div class="gameRow">
+      <div class="card">
+        <canvas id="c" width="960" height="420" aria-label="Joc"></canvas>
+        <div class="controls">
+          <button id="startBtn">Començar 🚀</button>
+          <button id="restartBtn" class="secondary" disabled>Reiniciar 🔁</button>
+        </div>
+      </div>
+
+      <div class="card stat">
+        <div class="statBox">
+          <div class="k">Obstacles superats (aquesta ronda)</div>
+          <div class="v"><span id="passed">0</span> / 10</div>
+        </div>
+
+        <div class="statBox">
+          <div class="k">🔐 Contrasenya de la ronda</div>
+
+          <div class="labelRow" style="margin-top:8px;">
+            <span style="color:var(--muted); font-size:12px;">Escriu-la per començar</span>
+            <span class="hint" id="hint">Pista: B•••••</span>
+          </div>
+
+          <input id="pw" autocomplete="off" placeholder="Contrasenya…" />
+          <div class="preview">Mostra “tipus contrasenya”: <b id="masked">—</b></div>
+
+          <div class="msg" id="msg">Escriu la contrasenya i prem <b>Començar</b> 🚀</div>
+
+          <div class="tip">
+            - Salta: <b>Espai</b><br/>
+            - Mòbil: <b>toca</b> la pantalla<br/>
+            - Si xoques: fi de ronda 😵 (i cal tornar a començar la mateixa ronda)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>HTML en un sol fitxer ✨</footer>
+  </div>
+
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h2 id="modalTitle">🎉 Premi!</h2>
+      <p class="sub" id="modalSub">Has superat 10 obstacles. El teu premi és:</p>
+      <div class="prize" id="prize">—</div>
+      <div class="controls" style="justify-content:flex-end; margin-top:14px;">
+        <button id="nextRound" class="secondary">Següent ronda ➜</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ===== Rondes (premi + contrasenya) =====
+  // Cada ronda té una contrasenya diferent i un premi diferent.
+  const rounds = [
+    { prize: "Anar a la platja 🏖️",   pw: "BOIBOI",     accepts: ["BOIBOI", "BOI BOI", "BOI-BOI"] },
+    { prize: "Anar al cine 🎬🍿",     pw: "PERDÓ",      accepts: ["PERDÓ", "PERDO"] },
+    { prize: "Massatge 💆‍♀️",        pw: "GRÀCIES",    accepts: ["GRÀCIES", "GRACIES"] },
+    { prize: "Petar granets 😅",      pw: "GUAPÍSSIMA", accepts: ["GUAPÍSSIMA", "GUAPISSIMA"] },
+  ];
+
+  // ===== DOM =====
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+
+  const startBtn = document.getElementById("startBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const passedEl = document.getElementById("passed");
+
+  const roundPill = document.getElementById("roundPill");
+  const hintEl = document.getElementById("hint");
+  const pwInput = document.getElementById("pw");
+  const maskedEl = document.getElementById("masked");
+  const msgEl = document.getElementById("msg");
+
+  const overlay = document.getElementById("overlay");
+  const prizeEl = document.getElementById("prize");
+  const nextRoundBtn = document.getElementById("nextRound");
+
+  // ===== State =====
+  let roundIndex = 0;
+
+  let running = false;
+  let gameOver = false;
+  let won = false;
+
+  // Player
+  const groundY = 330;
+  const player = { x: 160, y: groundY, w: 36, h: 52, vy: 0, onGround: true, canDouble: true };
+
+  // Obstacles
+  let obstacles = [];
+  let spawnTimer = 0;
+
+  let speed = 3.0;
+  let passed = 0;
+  let invuln = 0; // frames of invulnerability after start/restart
+
+// ===== Helpers =====
+  function rand(min, max){ return Math.random() * (max - min) + min; }
+
+  function normalize(s){
+    return (s || "")
+      .trim()
+      .toUpperCase()
+      .replaceAll("’", "'")
+      .replace(/\s+/g, " ");
+  }
+
+  function setMessage(text, kind){
+    msgEl.classList.remove("ok","bad");
+    if(kind) msgEl.classList.add(kind);
+    msgEl.innerHTML = text;
+  }
+
+  function shake(el){
+    el.classList.remove("shake");
+    void el.offsetWidth;
+    el.classList.add("shake");
+  }
+
+  function hintForRound(i){
+    const pw = rounds[i].pw;
+    const first = pw[0] || "?";
+    const dots = "•".repeat(Math.max(1, pw.length - 1));
+    return `Pista: ${first}${dots}`;
+  }
+
+  function updateMasked(){
+    const v = pwInput.value || "";
+    if(!v) { maskedEl.textContent = "—"; return; }
+    const first = v[0];
+    const rest = "•".repeat(Math.max(0, v.length - 1));
+    maskedEl.textContent = first + rest;
+  }
+
+  function updateRoundUI(){
+    roundPill.textContent = `Ronda ${roundIndex + 1} / ${rounds.length}`;
+    hintEl.textContent = hintForRound(roundIndex);
+    pwInput.value = "";
+    updateMasked();
+    setMessage("Escriu la contrasenya i prem <b>Començar</b> 🚀", "");
+  }
+
+  function showModal(prize){
+    prizeEl.textContent = prize;
+    overlay.style.display = "flex";
+  }
+  function hideModal(){ overlay.style.display = "none"; }
+
+  function resetRunState(){
+    running = false; gameOver = false; won = false;
+    player.y = groundY; player.vy = 0; player.onGround = true; player.canDouble = true;
+    obstacles = []; spawnTimer = 0; speed = 5.2;
+    passed = 0; passedEl.textContent = passed;
+    draw();
+  }
+
+  function resetRound(keepPassword=true){
+    resetRunState();
+    startBtn.disabled = false;
+    restartBtn.disabled = true;
+    if(!keepPassword){
+      pwInput.value = "";
+      updateMasked();
+    }
+  }
+
+  function rectsOverlap(a,b){
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function spawnObstacle(){
+    const h = rand(22, 42);
+    const w = rand(16, 24);
+    obstacles.push({
+      x: canvas.width + 40,
+      y: groundY + (player.h - h),
+      w, h, passed:false
+    });
+  }
+
+  function jump(){
+    if(!running || gameOver || won) return;
+
+    // Ground jump
+    if(player.onGround){
+      player.vy = -14.5;
+      player.onGround = false;
+      return;
+    }
+
+    // One extra jump in the air (makes it easier)
+    if(player.canDouble){
+      player.vy = -11.5;
+      player.canDouble = false;
+    }
+  }
+
+  // ===== Main loop =====
+  let last = 0;
+  function loop(ts){
+    if(!running) return;
+    const dt = Math.min(32, ts - last || 16);
+    last = ts;
+
+    update(dt/16.67);
+    draw();
+
+    if(running) requestAnimationFrame(loop);
+  }
+
+  function update(t){
+    if(gameOver || won) return;
+
+    invuln = Math.max(0, invuln - t);
+// gravity
+    player.vy += 0.65 * t;
+    player.y += player.vy * t;
+
+    if(player.y >= groundY){
+      player.y = groundY; player.vy = 0; player.onGround = true; player.canDouble = true;
+    }
+
+    // spawn obstacles
+    spawnTimer -= t;
+    if(spawnTimer <= 0){
+      spawnObstacle();
+      spawnTimer = rand(95, 135);
+    }
+
+    // move obstacles + count passed
+    for(const ob of obstacles){
+      ob.x -= speed * t;
+      if(!ob.passed && ob.x + ob.w < player.x){
+        ob.passed = true;
+        passed++;
+        passedEl.textContent = passed;
+        speed = Math.min(5.0, speed + 0.03);
+      }
+    }
+
+    obstacles = obstacles.filter(ob => ob.x + ob.w > -60);
+
+    // collisions
+    if(invuln > 0){
+      return;
+    }
+
+    // smaller forgiving hitbox
+    const pRect = {x: player.x + player.w*0.20, y: (player.y - player.h) + player.h*0.18, w: player.w*0.60, h: player.h*0.64};
+    for(const ob of obstacles){
+      const oRect = {x: ob.x + ob.w*0.10, y: (ob.y - ob.h) + ob.h*0.10, w: ob.w*0.80, h: ob.h*0.85};
+      if(rectsOverlap(pRect, oRect)){
+        gameOver = true; running = false;
+        startBtn.disabled = false;
+        restartBtn.disabled = false;
+        setMessage("❌ Has xocat. Torna-ho a intentar (mateixa ronda) 😵", "bad");
+        shake(msgEl);
+        return;
+      }
+    }
+
+    // win
+    if(passed >= 10){
+      won = true; running = false;
+      startBtn.disabled = true;
+      restartBtn.disabled = false;
+
+      const prize = rounds[roundIndex].prize;
+      showModal(prize);
+    }
+  }
+
+  function draw(){
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    // sky gradient
+    const g = ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0, "rgba(124,92,255,.20)");
+    g.addColorStop(1, "rgba(0,0,0,.25)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,w,h);
+
+    // ground
+    ctx.fillStyle = "rgba(255,255,255,.12)";
+    ctx.fillRect(0, groundY+6, w, 6);
+    ctx.fillStyle = "rgba(255,255,255,.06)";
+    ctx.fillRect(0, groundY+12, w, h-(groundY+12));
+
+    // player (gepard 🐆)
+    const px = player.x, pyTop = player.y - player.h;
+    drawCheetah(px, pyTop, player.w, player.h);
+
+    // obstacles
+    for(const ob of obstacles){
+      const x = ob.x, yTop = ob.y - ob.h;
+      ctx.fillStyle = "rgba(255,77,109,.85)";
+      roundRect(x, yTop, ob.w, ob.h, 8);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(255,255,255,.18)";
+      roundRect(x+4, yTop+4, Math.max(6, ob.w-8), 10, 6);
+      ctx.fill();
+    }
+
+    // HUD
+    ctx.fillStyle = "rgba(242,244,255,.80)";
+    ctx.font = "900 16px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillText("ESPAI per saltar", 18, 28);
+  }
+
+  function roundRect(x,y,w,h,r){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.arcTo(x+w, y, x+w, y+h, rr);
+    ctx.arcTo(x+w, y+h, x, y+h, rr);
+    ctx.arcTo(x, y+h, x, y, rr);
+    ctx.arcTo(x, y, x+w, y, rr);
+    ctx.closePath();
+  }
+
+  
+  function drawCheetah(x, y, w, h){
+    // Stylized cheetah using canvas shapes (no external images)
+    // Scale reference
+    const coat = "rgba(245, 196, 92, .95)";
+    const spot = "rgba(35, 28, 18, .65)";
+
+    // Body (ellipse)
+    const bodyW = w * 1.75;
+    const bodyH = h * 0.55;
+    const bodyX = x - w * 0.25;
+    const bodyY = y + h * 0.34;
+
+    ctx.fillStyle = coat;
+    ctx.beginPath();
+    ctx.ellipse(bodyX + bodyW/2, bodyY + bodyH/2, bodyW/2, bodyH/2, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Head (circle)
+    const headR = h * 0.20;
+    const headX = bodyX + bodyW * 0.82;
+    const headY = y + h * 0.34;
+
+    ctx.fillStyle = coat;
+    ctx.beginPath();
+    ctx.arc(headX, headY, headR, 0, Math.PI*2);
+    ctx.fill();
+
+    // Ear
+    ctx.beginPath();
+    ctx.arc(headX + headR*0.35, headY - headR*0.75, headR*0.35, 0, Math.PI*2);
+    ctx.fill();
+
+    // Snout
+    ctx.fillStyle = "rgba(255, 232, 200, .95)";
+    ctx.beginPath();
+    ctx.ellipse(headX + headR*0.65, headY + headR*0.15, headR*0.72, headR*0.48, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Eye + nose
+    ctx.fillStyle = "rgba(15,18,32,.85)";
+    ctx.beginPath();
+    ctx.arc(headX + headR*0.15, headY - headR*0.15, headR*0.12, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(headX + headR*0.95, headY + headR*0.12, headR*0.11, 0, Math.PI*2);
+    ctx.fill();
+
+    // "Tear marks" (cheetah face lines)
+    ctx.strokeStyle = "rgba(15,18,32,.55)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(headX + headR*0.18, headY);
+    ctx.lineTo(headX + headR*0.28, headY + headR*0.55);
+    ctx.stroke();
+
+    // Legs (4 rounded rects)
+    ctx.fillStyle = "rgba(230, 170, 70, .95)";
+    const legW = Math.max(5, w * 0.22);
+    const legH = Math.max(12, h * 0.32);
+    const legY = bodyY + bodyH*0.55;
+    const legXs = [
+      bodyX + bodyW*0.28,
+      bodyX + bodyW*0.40,
+      bodyX + bodyW*0.62,
+      bodyX + bodyW*0.74
+    ];
+    for(const lx of legXs){
+      roundRect(lx, legY, legW, legH, 6);
+      ctx.fill();
+      // paw
+      ctx.fillStyle = "rgba(15,18,32,.75)";
+      roundRect(lx, legY + legH - 5, legW, 6, 3);
+      ctx.fill();
+      ctx.fillStyle = "rgba(230, 170, 70, .95)";
+    }
+
+    // Tail (curved stroke)
+    ctx.strokeStyle = coat;
+    ctx.lineWidth = Math.max(4, h * 0.10);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(bodyX + bodyW*0.18, bodyY + bodyH*0.35);
+    ctx.quadraticCurveTo(bodyX - bodyW*0.08, bodyY - bodyH*0.35, bodyX + bodyW*0.10, bodyY - bodyH*0.25);
+    ctx.stroke();
+
+    // Tail tip
+    ctx.strokeStyle = "rgba(15,18,32,.70)";
+    ctx.lineWidth = Math.max(5, h * 0.12);
+    ctx.beginPath();
+    ctx.moveTo(bodyX + bodyW*0.10, bodyY - bodyH*0.25);
+    ctx.lineTo(bodyX + bodyW*0.14, bodyY - bodyH*0.18);
+    ctx.stroke();
+
+    // Spots (small circles on body)
+    ctx.fillStyle = spot;
+    const spots = 10;
+    for(let i=0;i<spots;i++){
+      const sx = bodyX + bodyW*(0.22 + Math.random()*0.55);
+      const sy = bodyY + bodyH*(0.20 + Math.random()*0.65);
+      const sr = 2 + Math.random()*2.8;
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+
+// ===== Start logic with password =====
+  function passwordOk(){
+    const entered = normalize(pwInput.value);
+    const allowed = rounds[roundIndex].accepts.map(normalize);
+    return allowed.includes(entered);
+  }
+
+  function start(){
+    if(running || won) return;
+
+    if(!passwordOk()){
+      setMessage(`❌ Contrasenya incorrecta. ${hintForRound(roundIndex)} 😉`, "bad");
+      shake(msgEl);
+      return;
+    }
+
+    // If previously game over, keep password but reset run state.
+    resetRunState();
+
+    running = true;
+    invuln = 90;
+    spawnTimer = Math.max(spawnTimer, 120);
+    setMessage("✅ Perfecte! Comença la ronda… 🏃‍♂️", "ok");
+    startBtn.disabled = true;
+    restartBtn.disabled = false;
+    last = 0;
+    requestAnimationFrame(loop);
+  }
+
+  function restart(){
+    // restart same round (needs password again, per your rule)
+    resetRound(false);
+    updateRoundUI();
+  }
+
+  // ===== After win: next round =====
+  function nextRound(){
+    hideModal();
+    // advance
+    roundIndex = (roundIndex + 1) % rounds.length;
+    updateRoundUI();
+    resetRound(true);
+    startBtn.disabled = false;
+    restartBtn.disabled = true;
+    pwInput.focus();
+  }
+
+  // ===== Controls =====
+  pwInput.addEventListener("input", updateMasked);
+  pwInput.addEventListener("keydown", (e) => { if(e.key === "Enter") start(); });
+
+  document.addEventListener("keydown", (e) => {
+    if(e.code === "Space"){
+      // If running => jump, else ignore (start is via button/enter)
+      if(running){ e.preventDefault(); jump(); }
+    }
+  });
+
+  canvas.addEventListener("pointerdown", () => {
+    if(running) jump();
+  });
+
+  startBtn.addEventListener("click", start);
+  restartBtn.addEventListener("click", restart);
+  nextRoundBtn.addEventListener("click", nextRound);
+  overlay.addEventListener("click", (e) => { if(e.target === overlay) nextRound(); });
+
+  // init
+  updateRoundUI();
+  resetRound(true);
+})();
+</script>
+</body>
+</html>
